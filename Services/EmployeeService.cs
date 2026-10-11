@@ -17,6 +17,9 @@ public interface IEmployeeService
     Task<Employee?> GetEmployeeByIdAsync(int employeeId);
 
     Task UpdateEmployeeAsync(Employee employee);
+
+    // Deletes an employee record from the database by their ID.
+    Task DeleteEmployeeAsync(int employeeId);
 }
 
 // Thrown when the database's CHECK rules reject a value (position, department or status).
@@ -278,5 +281,26 @@ public class EmployeeService : IEmployeeService
             employee.Responsibilities;
 
         await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task DeleteEmployeeAsync(int employeeId)
+    {
+        await using var connection =
+            _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync();
+
+        const string query = @"
+            DELETE FROM dbo.employee
+            WHERE employee_id = @EmployeeId";
+
+        await using var command =
+            new SqlCommand(query, connection);
+
+        command.Parameters.Add("@EmployeeId",
+            SqlDbType.Int).Value = employeeId;
+
+        await command.ExecuteNonQueryAsync();
+        _logger.LogInformation("Deleted employee {EmployeeId}.", employeeId);
     }
 }
