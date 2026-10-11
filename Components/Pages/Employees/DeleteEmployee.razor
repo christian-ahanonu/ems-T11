@@ -1,15 +1,238 @@
 @page "/directory/delete/{Id:int}"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components
+@using cse325_group_project.Models
+@using cse325_group_project.Services
+
+@* Service used to load and delete employee records. *@
+@inject IEmployeeService EmployeeService
+
+@* Used to navigate back to Employee Directory. *@
+@inject NavigationManager Navigation
 
 <PageTitle>Delete Employee</PageTitle>
 
-<h1>Delete Employee</h1>
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        Unable to load employee details.
+    </div>
+}
+else if (isLoading)
+{
+    <p>Loading employee...</p>
+}
+else
+{
+    <div class="delete-employee-container">
+        <div class="delete-employee-header">
+            <h1>Delete Employee</h1>
+        </div>
 
-<p>The confirmation for deleting employee #@Id will go here.</p>
+        @* Form displaying employee details with Delete and Cancel actions. *@
+        <form @onsubmit="DeleteEmployeeRecord">
 
-<a class="btn btn-secondary" href="directory">Back to Directory</a>
+            <div class="form-group">
+                <label for="employee-id" class="form-label">
+                    Employee ID
+                </label>
+
+                <input id="employee-id"
+                       class="form-control"
+                       value="@employee.EmployeeId"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="first-name" class="form-label">
+                    First Name
+                </label>
+
+                <input id="first-name"
+                       class="form-control"
+                       value="@employee.FirstName"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="last-name" class="form-label">
+                    Last Name
+                </label>
+
+                <input id="last-name"
+                       class="form-control"
+                       value="@employee.LastName"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    Email
+                </label>
+
+                <input id="email"
+                       type="email"
+                       class="form-control"
+                       value="@employee.Email"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="position" class="form-label">
+                    Position
+                </label>
+
+                <input id="position"
+                       class="form-control"
+                       value="@employee.Position"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="department" class="form-label">
+                    Department
+                </label>
+
+                <input id="department"
+                       class="form-control"
+                       value="@employee.Department"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="status" class="form-label">
+                    Status
+                </label>
+
+                <input id="status"
+                       class="form-control"
+                       value="@employee.Status"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="start-date" class="form-label">
+                    Start Date
+                </label>
+
+                <input id="start-date"
+                       class="form-control"
+                       value="@employee.StartDate.ToString("yyyy-MM-dd")"
+                       readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="responsibilities" class="form-label">
+                    Responsibilities
+                </label>
+
+                <textarea id="responsibilities"
+                          class="form-control"
+                          rows="4"
+                          readonly>@employee.Responsibilities</textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+
+            @* Cancel returns to Employee Directory without deleting.
+               Delete deletes the record from the database. *@
+            <div class="button-container">
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="Cancel">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="btn btn-primary"
+                        disabled="@isDeleting">
+                    Delete
+                </button>
+            </div>
+        </form>
+    </div>
+}
 
 @code {
-    // Employee ID from the address bar, e.g. /directory/delete/5
+
+    // Employee ID taken from the URL.
     [Parameter]
     public int Id { get; set; }
+
+    // Stores loaded employee record.
+    private Employee employee = new();
+
+    // True while employee data is being loaded.
+    private bool isLoading = true;
+
+    // True if loading employee data failed.
+    private bool loadFailed;
+
+    // Prevents multiple submissions while deleting.
+    private bool isDeleting;
+
+    // Displays delete error messages.
+    private string? errorMessage;
+
+    // Loads the selected employee record when the page opens.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Retrieve employee from database.
+            var loadedEmployee =
+                await EmployeeService
+                    .GetEmployeeByIdAsync(Id);
+
+            // If employee doesn't exist, return to Employee Directory.
+            if (loadedEmployee == null)
+            {
+                Navigation.NavigateTo("/directory");
+                return;
+            }
+
+            employee = loadedEmployee;
+        }
+        catch
+        {
+            loadFailed = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Deletes the employee record from the database.
+    private async Task DeleteEmployeeRecord()
+    {
+        isDeleting = true;
+        errorMessage = null;
+
+        try
+        {
+            await EmployeeService.DeleteEmployeeAsync(Id);
+            Navigation.NavigateTo("/directory");
+        }
+        catch
+        {
+            errorMessage = "Unable to delete employee.";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    // Returns to Employee Directory without deleting.
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/directory");
+    }
 }
