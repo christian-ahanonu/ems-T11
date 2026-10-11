@@ -1,24 +1,72 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-shell">
+    <header class="app-header">
+        <div class="header-container">
+            <!-- Left: Brand Logo and Navigation Links together -->
+            <div class="header-left">
+                <a href="" class="brand-logo" aria-label="T11 EM-System Home">
+                    <span class="logo-badge">T11</span>
+                    <span class="logo-title">EM-System</span>
+                </a>
 
-    <main>
-        <div class="top-row px-4">
-            @* Only shown when someone is logged in *@
-            <AuthorizeView>
-                <span>Logged in as @context.User.Identity?.Name</span>
-                <form method="post" action="logout">
-                    <button type="submit" class="btn btn-link">Logout</button>
-                </form>
-            </AuthorizeView>
+                <nav class="nav-pills">
+                    <NavLink href="" class="nav-pill" Match="NavLinkMatch.All">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span>Home</span>
+                    </NavLink>
+
+                    <NavLink href="directory" class="nav-pill" data-enhance-nav="false">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Directory</span>
+                    </NavLink>
+                </nav>
+            </div>
+
+            <!-- User Auth Controls -->
+            <div class="header-auth">
+                <AuthorizeView>
+                    <Authorized>
+                        <a href="hr-profile" class="user-profile-badge" title="Manage HR Profile">
+                            <span class="status-indicator"></span>
+                            <span class="user-name">@(context.User.Identity?.Name ?? "HR User")</span>
+                        </a>
+
+                        <form method="post" action="logout" class="d-inline">
+                            <button type="submit" class="logout-btn" title="Logout">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                <span>Logout</span>
+                            </button>
+                        </form>
+                    </Authorized>
+
+                    <NotAuthorized>
+                        <a href="/?openLogin=true" class="login-btn">
+                            Log In
+                        </a>
+                        <a href="hr-profile" class="signup-btn">
+                            Sign Up
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
+    </header>
 
-        <article class="content px-4">
-            @Body
-        </article>
+    <main class="app-main">
+        @Body
     </main>
 </div>
 

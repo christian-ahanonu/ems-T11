@@ -7,26 +7,34 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IAuthService AuthService
 
-<PageTitle>HR Profile</PageTitle>
+<PageTitle>HR Profile - T11 EM-System</PageTitle>
 
-<h1>HR Profile</h1>
+<div class="app-content-container">
+    <div class="profile-container">
+        <div class="profile-hero">
+            <span class="hero-eyebrow">HR ACCOUNT</span>
+            <h1>HR Profile & Access</h1>
+            <p>Manage your HR credentials and authorized administrative access.</p>
+        </div>
 
-<div class="profile-actions">
-    <AuthorizeView>
-        @* Logged in users only see Edit Account *@
-        <Authorized>
-            <button class="btn btn-secondary" @onclick="OpenEditAccountModal">
-                Edit Account
-            </button>
-        </Authorized>
+        <div class="profile-actions">
+            <AuthorizeView>
+                @* Logged in users only see Edit Account *@
+                <Authorized>
+                    <button class="btn btn-secondary" @onclick="OpenEditAccountModal">
+                        Edit Account
+                    </button>
+                </Authorized>
 
-        @* Logged out users only see Create Account *@
-        <NotAuthorized>
-            <button class="btn btn-primary" @onclick="OpenCreateAccountModal">
-                Create Account
-            </button>
-        </NotAuthorized>
-    </AuthorizeView>
+                @* Logged out users only see Create Account *@
+                <NotAuthorized>
+                    <button class="btn btn-primary" @onclick="OpenCreateAccountModal">
+                        Create Account
+                    </button>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
 </div>
 
 @if (showCreateAccountModal)
