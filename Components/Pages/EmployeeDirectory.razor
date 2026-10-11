@@ -3,309 +3,444 @@
 @* Only logged in users can open this page *@
 @attribute [Authorize]
 
+@using System.Timers
 @using cse325_group_project.Models
 @using cse325_group_project.Services
+@implements IDisposable
 
 @inject IEmployeeService EmployeeService
 @inject ILogger<EmployeeDirectory> Logger
+@inject NavigationManager Navigation
 
-<PageTitle>Employee Directory</PageTitle>
+<PageTitle>People Directory - T11 EM-System</PageTitle>
 
-<h1>Employee Directory</h1>
+<div class="app-content-container">
+    <!-- Header Block -->
+    <div class="directory-hero">
+        <div class="directory-hero-text">
+            <span class="hero-eyebrow">PEOPLE DIRECTORY</span>
+            <h1 class="hero-title">Everyone, in one place</h1>
+            <p class="hero-subtext">Find and maintain the employee information your team relies on.</p>
+        </div>
 
-<button class="btn btn-primary" @onclick="OpenCreateModal">
-    Create New Record
-</button>
-
-@if (!string.IsNullOrEmpty(successMessage))
-{
-    <div class="alert alert-success" role="status">
-        @successMessage
+        <button class="btn-ui-dark" @onclick="OpenCreateModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add employee</span>
+        </button>
     </div>
-}
 
-@if (loadFailed)
-{
-    <div class="alert alert-danger" role="alert">
-        Sorry, the employee list could not be loaded. Please try again later.
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert-banner banner-success mb-3" role="status">
+            @successMessage
+        </div>
+    }
+
+    <!-- Search & Filter Controls -->
+    <div class="directory-controls-bar">
+        <!-- Search with Debounce -->
+        <div class="search-input-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text"
+                   class="search-input"
+                   placeholder="Search name, role, or email"
+                   value="@searchTerm"
+                   @oninput="OnSearchInput" />
+        </div>
+
+        <!-- Filter: Department -->
+        <div class="filter-select-wrapper">
+            <select class="filter-select" @onchange="OnDepartmentChanged">
+                <option value="">All</option>
+                @foreach (var dept in EmployeeOptions.Departments)
+                {
+                    <option value="@dept" selected="@(selectedDepartment == dept)">@dept</option>
+                }
+            </select>
+        </div>
+
+        <!-- Filter: Status -->
+        <div class="filter-select-wrapper">
+            <select class="filter-select" @onchange="OnStatusChanged">
+                <option value="">All</option>
+                @foreach (var stat in EmployeeOptions.Statuses)
+                {
+                    <option value="@stat" selected="@(selectedStatus == stat)">@stat</option>
+                }
+            </select>
+        </div>
     </div>
-}
-else if (employees == null)
-{
-    <p role="status">Loading employees...</p>
-}
-else if (employees.Count == 0)
-{
-    <p role="status">No employees found.</p>
-}
-else
-{
-    <table class="employee-table">
-        <thead>
-        <tr>
-            <th scope="col">ID</th>
-            <th scope="col">First Name</th>
-            <th scope="col">Last Name</th>
-            <th scope="col">Email</th>
-            <th scope="col">Position</th>
-            <th scope="col"><span class="visually-hidden">Actions</span></th>
-        </tr>
-        </thead>
 
-        <tbody>
-        @foreach (var employee in employees)
+    <!-- Directory Content Surface -->
+    <div class="directory-surface">
+        @if (loadFailed)
         {
-            <tr>
-                <td>@employee.EmployeeId</td>
-                <td>@employee.FirstName</td>
-                <td>@employee.LastName</td>
-                <td>@employee.Email</td>
-                <td>@employee.Position</td>
-
-                <td>
-                    <button class="employee-action-button"
-                            title="Details"
-                            aria-label="View details for @employee.FullName"
-                            @onclick="() => OpenDetails(employee)">
-                        <span class="white-info">&#x2139;</span>
-                    </button>
-
-                    <a class="employee-action-button"
-                       href="directory/edit/@employee.EmployeeId"
-                       title="Edit"
-                       aria-label="Edit @employee.FullName">
-                        <span class="white-pencil">&#x270E;</span>
-                    </a>
-
-                    <a class="employee-action-button"
-                       href="directory/delete/@employee.EmployeeId"
-                       title="Delete"
-                       aria-label="Delete @employee.FullName">
-                        <span class="white-close">&#x2716;</span>
-                    </a>
-                </td>
-            </tr>
+            <div class="state-message error-message" role="alert">
+                Sorry, the employee list could not be loaded. Please try again later.
+            </div>
         }
-        </tbody>
-    </table>
-}
+        else if (employees == null)
+        {
+            <div class="state-message">Loading employees...</div>
+        }
+        else if (filteredEmployees.Count == 0)
+        {
+            <!-- No Employees Found matching search or filters -->
+            <div class="empty-state">
+                <div class="empty-icon-wrapper">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="18" y1="8" x2="23" y2="13"></line>
+                        <line x1="23" y1="8" x2="18" y2="13"></line>
+                    </svg>
+                </div>
+                <h3 class="empty-title">No employees found</h3>
+                <p class="empty-desc">Try a different search or clear your filters.</p>
+                <button type="button" class="btn-clear-filters" @onclick="ClearFilters">
+                    Clear filters
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="directory-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="th-employee">EMPLOYEE</th>
+                            <th scope="col" class="th-position">POSITION</th>
+                            <th scope="col" class="th-dept">DEPARTMENT</th>
+                            <th scope="col" class="th-status">STATUS</th>
+                            <th scope="col" class="th-actions text-end">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var emp in filteredEmployees)
+                        {
+                            <tr class="directory-row">
+                                <td class="td-employee">
+                                    <div class="employee-cell">
+                                        <div class="user-avatar">
+                                            @GetInitials(emp.FirstName, emp.LastName)
+                                        </div>
+                                        <div class="user-info">
+                                            <span class="user-name">@emp.FullName</span>
+                                            <span class="user-email">@emp.Email</span>
+                                        </div>
+                                    </div>
+                                </td>
 
+                                <td class="td-position">
+                                    @emp.Position
+                                </td>
+
+                                <td class="td-dept">
+                                    @emp.Department
+                                </td>
+
+                                <td class="td-status">
+                                    <span class="status-pill @GetStatusClass(emp.Status)">
+                                        @emp.Status
+                                    </span>
+                                </td>
+
+                                <td class="td-actions text-end">
+                                    <div class="action-menu-container">
+                                        <button type="button"
+                                                class="action-menu-btn"
+                                                title="Actions"
+                                                aria-label="Actions for @emp.FullName"
+                                                @onclick="() => ToggleActionMenu(emp.EmployeeId)">
+                                            &bull;&bull;&bull;
+                                        </button>
+
+                                        @if (activeActionEmployeeId == emp.EmployeeId)
+                                        {
+                                            <div class="action-dropdown" @onclick:stopPropagation="true">
+                                                <button type="button" class="action-dropdown-item" @onclick="() => OpenDetails(emp)">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                                    </svg>
+                                                    <span>View details</span>
+                                                </button>
+
+                                                <a class="action-dropdown-item" href="directory/edit/@emp.EmployeeId">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                    </svg>
+                                                    <span>Edit employee</span>
+                                                </a>
+
+                                                <a class="action-dropdown-item text-danger" href="directory/delete/@emp.EmployeeId">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                    <span>Delete</span>
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer summary -->
+            <div class="directory-footer">
+                <span>@filteredEmployees.Count of @(employees?.Count ?? 0) people</span>
+                @* <span class="text-muted">Demo directory</span> *@
+            </div>
+        }
+    </div>
+</div>
+
+<!-- View Employee Details Modal (UI matched with view-employee-details.png) -->
 @if (showDetailsModal && selectedEmployee != null)
 {
-    <div class="employee-modal-overlay">
-        <div class="employee-modal">
+    <div class="ui-modal-backdrop" @onclick="CloseDetails">
+        <div class="details-modal-dialog" @onclick:stopPropagation="true">
+            <button type="button" class="btn-dialog-close details-close" @onclick="CloseDetails" aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
 
-            <div class="employee-modal-header">
-                <h2>Employee Details</h2>
+            <div class="details-avatar">
+                @GetInitials(selectedEmployee.FirstName, selectedEmployee.LastName)
             </div>
 
-            <div class="employee-modal-body">
+            <h2 class="details-name">@selectedEmployee.FullName</h2>
+            <p class="details-role">@selectedEmployee.Position &middot; @selectedEmployee.Department</p>
 
-                <p><strong>ID:</strong> @selectedEmployee.EmployeeId</p>
-
-                <p><strong>First Name:</strong>
-                    @selectedEmployee.FirstName</p>
-
-                <p><strong>Last Name:</strong>
-                    @selectedEmployee.LastName</p>
-
-                <p><strong>Email:</strong>
-                    @selectedEmployee.Email</p>
-
-                <p><strong>Position:</strong>
-                    @selectedEmployee.Position</p>
-
-                <p><strong>Department:</strong>
-                    @selectedEmployee.Department</p>
-
-                <p><strong>Status:</strong>
-                    @selectedEmployee.Status</p>
-
-                <p><strong>Start Date:</strong>
-                    @selectedEmployee.StartDate.ToShortDateString()</p>
-
-                <p><strong>Responsibilities:</strong></p>
-
-                <p>@selectedEmployee.Responsibilities</p>
-
-                <div class="employee-modal-footer">
-                    <button class="btn btn-primary"
-                            @onclick="CloseDetails">
-                        OK
-                    </button>
+            <div class="details-metadata-card">
+                <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    <span>@selectedEmployee.Email</span>
                 </div>
 
+                <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Started @selectedEmployee.StartDate.ToString("MMMM dd, yyyy")</span>
+                </div>
+
+                <div class="meta-item">
+                    <span class="status-pill @GetStatusClass(selectedEmployee.Status)">
+                        @selectedEmployee.Status
+                    </span>
+                </div>
             </div>
 
+            <div class="details-section">
+                <span class="details-section-label">RESPONSIBILITIES</span>
+                <p class="details-section-text">@selectedEmployee.Responsibilities</p>
+            </div>
+
+            <div class="details-actions">
+                <button type="button" class="btn-ui-orange" @onclick="CloseDetails">
+                    Done
+                </button>
+            </div>
         </div>
     </div>
 }
 
+<!-- Add Employee Modal Form (matching edit-employee-details.png) -->
 @if (showCreateModal)
 {
-    <div class="employee-modal-overlay">
-        <div class="employee-modal" role="dialog" aria-modal="true" aria-labelledby="create-employee-title">
-
-            <div class="employee-modal-header">
-                <h2 id="create-employee-title">Create New Record</h2>
+    <div class="ui-modal-backdrop" @onclick="CloseCreateModal">
+        <div class="form-modal-dialog" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+            <div class="form-modal-header">
+                <div>
+                    <h2 id="create-modal-title" class="form-modal-title">Add employee</h2>
+                    <p class="form-modal-subtitle">Keep the team directory accurate and useful.</p>
+                </div>
+                <button type="button" class="btn-dialog-close" @onclick="CloseCreateModal" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
 
-            <EditForm Model="createModel"
-                      OnValidSubmit="SubmitCreateEmployee">
-
+            <EditForm Model="createModel" OnValidSubmit="SubmitCreateEmployee">
                 <DataAnnotationsValidator />
 
-                <div class="employee-modal-body">
+                <div class="form-modal-body">
+                    <div class="form-grid-2">
+                        <div class="form-group mb-3">
+                            <label for="create-employee-id" class="form-label">EMPLOYEE ID *</label>
+                            <InputNumber id="create-employee-id"
+                                         class="form-control"
+                                         @bind-Value="createModel.EmployeeId"
+                                         ParsingErrorMessage="The Employee ID field must be a number." />
+                            <ValidationMessage For="@(() => createModel.EmployeeId)" />
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="create-employee-id" class="form-label">Employee ID</label>
-                        <InputNumber id="create-employee-id"
-                                     class="form-control"
-                                     @bind-Value="createModel.EmployeeId"
-                                     ParsingErrorMessage="The Employee ID field must be a number." />
-                        <ValidationMessage For="@(() => createModel.EmployeeId)" />
+                        <div class="form-group mb-3">
+                            <label for="create-email" class="form-label">WORK EMAIL *</label>
+                            <InputText id="create-email"
+                                       type="email"
+                                       class="form-control"
+                                       @bind-Value="createModel.Email"
+                                       placeholder="name@workwell.co" />
+                            <ValidationMessage For="@(() => createModel.Email)" />
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="create-first-name" class="form-label">First Name</label>
-                        <InputText id="create-first-name"
-                                   class="form-control"
-                                   @bind-Value="createModel.FirstName" />
-                        <ValidationMessage For="@(() => createModel.FirstName)" />
+                    <div class="form-grid-2">
+                        <div class="form-group mb-3">
+                            <label for="create-first-name" class="form-label">FIRST NAME *</label>
+                            <InputText id="create-first-name"
+                                       class="form-control"
+                                       @bind-Value="createModel.FirstName" />
+                            <ValidationMessage For="@(() => createModel.FirstName)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="create-last-name" class="form-label">LAST NAME *</label>
+                            <InputText id="create-last-name"
+                                       class="form-control"
+                                       @bind-Value="createModel.LastName" />
+                            <ValidationMessage For="@(() => createModel.LastName)" />
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="create-last-name" class="form-label">Last Name</label>
-                        <InputText id="create-last-name"
-                                   class="form-control"
-                                   @bind-Value="createModel.LastName" />
-                        <ValidationMessage For="@(() => createModel.LastName)" />
+                    <div class="form-grid-2">
+                        <div class="form-group mb-3">
+                            <label for="create-position" class="form-label">POSITION *</label>
+                            <InputSelect id="create-position"
+                                         class="form-select"
+                                         @bind-Value="createModel.Position">
+                                <option value="">Select position...</option>
+                                @foreach (var option in EmployeeOptions.Positions)
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => createModel.Position)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="create-department" class="form-label">DEPARTMENT *</label>
+                            <InputSelect id="create-department"
+                                         class="form-select"
+                                         @bind-Value="createModel.Department">
+                                <option value="">Select department...</option>
+                                @foreach (var option in EmployeeOptions.Departments)
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => createModel.Department)" />
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="create-email" class="form-label">Email</label>
-                        <InputText id="create-email"
-                                   type="email"
-                                   class="form-control"
-                                   @bind-Value="createModel.Email" />
-                        <ValidationMessage For="@(() => createModel.Email)" />
+                    <div class="form-grid-2">
+                        <div class="form-group mb-3">
+                            <label for="create-status" class="form-label">STATUS *</label>
+                            <InputSelect id="create-status"
+                                         class="form-select"
+                                         @bind-Value="createModel.Status">
+                                <option value="">Select status...</option>
+                                @foreach (var option in EmployeeOptions.Statuses)
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => createModel.Status)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="create-start-date" class="form-label">START DATE *</label>
+                            <InputDate id="create-start-date"
+                                       class="form-control"
+                                       @bind-Value="createModel.StartDate" />
+                            <ValidationMessage For="@(() => createModel.StartDate)" />
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="create-position" class="form-label">Position</label>
-                        <InputSelect id="create-position"
-                                     class="form-select"
-                                     @bind-Value="createModel.Position">
-                            <option value="">Select position...</option>
-                            @foreach (var option in EmployeeOptions.Positions)
-                            {
-                                <option value="@option">@option</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => createModel.Position)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="create-department" class="form-label">Department</label>
-                        <InputSelect id="create-department"
-                                     class="form-select"
-                                     @bind-Value="createModel.Department">
-                            <option value="">Select department...</option>
-                            @foreach (var option in EmployeeOptions.Departments)
-                            {
-                                <option value="@option">@option</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => createModel.Department)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="create-status" class="form-label">Status</label>
-                        <InputSelect id="create-status"
-                                     class="form-select"
-                                     @bind-Value="createModel.Status">
-                            <option value="">Select status...</option>
-                            @foreach (var option in EmployeeOptions.Statuses)
-                            {
-                                <option value="@option">@option</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => createModel.Status)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="create-start-date" class="form-label">Start Date</label>
-                        <InputDate id="create-start-date"
-                                   class="form-control"
-                                   @bind-Value="createModel.StartDate" />
-                        <ValidationMessage For="@(() => createModel.StartDate)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="create-responsibilities" class="form-label">Responsibilities</label>
+                    <div class="form-group mb-3">
+                        <label for="create-responsibilities" class="form-label">RESPONSIBILITIES</label>
                         <InputTextArea id="create-responsibilities"
                                        class="form-control"
                                        rows="3"
-                                       @bind-Value="createModel.Responsibilities" />
+                                       @bind-Value="createModel.Responsibilities"
+                                       placeholder="Summary of responsibilities..." />
                         <ValidationMessage For="@(() => createModel.Responsibilities)" />
                     </div>
 
                     @if (!string.IsNullOrEmpty(createError))
                     {
-                        <div class="alert alert-danger" role="alert">@createError</div>
+                        <div class="alert-banner banner-danger mb-3" role="alert">@createError</div>
                     }
                 </div>
 
-                <div class="employee-modal-footer">
-                    <button type="button"
-                            class="btn btn-secondary me-2"
-                            @onclick="CloseCreateModal">
+                <div class="form-modal-footer">
+                    <button type="button" class="btn-ui-secondary" @onclick="CloseCreateModal">
                         Cancel
                     </button>
-
-                    <button type="submit"
-                            class="btn btn-primary"
-                            disabled="@isSaving">
-                        Create
+                    <button type="submit" class="btn-ui-orange" disabled="@isSaving">
+                        Save changes
                     </button>
                 </div>
             </EditForm>
-
         </div>
     </div>
 }
 
 @code {
     private List<Employee>? employees;
+    private List<Employee> filteredEmployees = new();
 
-    // Controls visibility of the Create New Record modal.
-    private bool showCreateModal;
+    // Filters and Debounced Search
+    private string searchTerm = string.Empty;
+    private string selectedDepartment = string.Empty;
+    private string selectedStatus = string.Empty;
+    private Timer? debounceTimer;
 
-    // Stores user input for the Create New Record form.
-    private EmployeeFormModel createModel = new();
+    // Active three-dots action dropdown
+    private int? activeActionEmployeeId;
 
-    // Error shown inside the Create New Record modal.
-    private string? createError;
-
-    // Shown above the table after an employee is created.
-    private string? successMessage;
-
-    // true while the new employee is being saved, so Create can't be clicked twice
-    private bool isSaving;
-
+    // Details Modal
     private Employee? selectedEmployee;
-
     private bool showDetailsModal;
 
-    // true = the database could not be reached
+    // Create Modal
+    private bool showCreateModal;
+    private EmployeeFormModel createModel = new();
+    private string? createError;
+    private string? successMessage;
+    private bool isSaving;
     private bool loadFailed;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            employees =
-                await EmployeeService.GetAllEmployeesAsync();
+            employees = await EmployeeService.GetAllEmployeesAsync();
+            ApplyFilters();
         }
         catch (Exception ex)
         {
@@ -314,8 +449,94 @@ else
         }
     }
 
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+
+        // Debounce search input by 300ms to prevent lag
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+        debounceTimer = new Timer(300);
+        debounceTimer.Elapsed += (sender, args) =>
+        {
+            debounceTimer?.Stop();
+            InvokeAsync(() =>
+            {
+                ApplyFilters();
+                StateHasChanged();
+            });
+        };
+        debounceTimer.Start();
+    }
+
+    private void OnDepartmentChanged(ChangeEventArgs e)
+    {
+        selectedDepartment = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void OnStatusChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedDepartment = string.Empty;
+        selectedStatus = string.Empty;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (employees == null)
+        {
+            filteredEmployees = new();
+            return;
+        }
+
+        var query = employees.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            query = query.Where(e =>
+                e.FullName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                e.Email.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                e.Position.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                e.Department.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedDepartment))
+        {
+            query = query.Where(e => e.Department.Equals(selectedDepartment, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedStatus))
+        {
+            query = query.Where(e => e.Status.Equals(selectedStatus, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filteredEmployees = query.ToList();
+    }
+
+    private void ToggleActionMenu(int employeeId)
+    {
+        if (activeActionEmployeeId == employeeId)
+        {
+            activeActionEmployeeId = null;
+        }
+        else
+        {
+            activeActionEmployeeId = employeeId;
+        }
+    }
+
     private void OpenDetails(Employee employee)
     {
+        activeActionEmployeeId = null;
         selectedEmployee = employee;
         showDetailsModal = true;
     }
@@ -326,22 +547,20 @@ else
         selectedEmployee = null;
     }
 
-    // Opens the Create New Record modal with an empty form.
     private void OpenCreateModal()
     {
+        activeActionEmployeeId = null;
         createModel = new();
         createError = null;
         successMessage = null;
         showCreateModal = true;
     }
 
-    // Closes the Create New Record modal without saving.
     private void CloseCreateModal()
     {
         showCreateModal = false;
     }
 
-    // Runs only when every field is valid: saves the employee and adds it to the list.
     private async Task SubmitCreateEmployee()
     {
         isSaving = true;
@@ -358,6 +577,7 @@ else
                 employees.Sort((a, b) => a.EmployeeId.CompareTo(b.EmployeeId));
             }
 
+            ApplyFilters();
             successMessage = $"{employee.FullName} has been added.";
             showCreateModal = false;
         }
@@ -378,5 +598,29 @@ else
         {
             isSaving = false;
         }
+    }
+
+    private static string GetInitials(string first, string last)
+    {
+        string f = string.IsNullOrWhiteSpace(first) ? "" : first[0].ToString().ToUpper();
+        string l = string.IsNullOrWhiteSpace(last) ? "" : last[0].ToString().ToUpper();
+        return $"{f}{l}";
+    }
+
+    private static string GetStatusClass(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => "status-active",
+            "on leave" or "onleave" => "status-on-leave",
+            "onboarding" => "status-onboarding",
+            _ => "status-active"
+        };
+    }
+
+    public void Dispose()
+    {
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
     }
 }

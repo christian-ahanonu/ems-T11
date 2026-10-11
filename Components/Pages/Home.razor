@@ -1,107 +1,307 @@
-﻿@page "/"
+@page "/"
 @rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+@using cse325_group_project.Models
+@using cse325_group_project.Services
+@inject IEmployeeService EmployeeService
+@inject NavigationManager Navigation
 
-<h1>Employee Management System</h1>
+<PageTitle>Home - T11 EM-System</PageTitle>
 
-<p>Welcome to the Employee Management System.</p>
+<div class="app-content-container">
+    <AuthorizeView>
+        <Authorized>
+            <!-- Greeting & Page Title -->
+            <div class="dashboard-hero">
+                <span class="hero-eyebrow">GOOD DAY, @(context.User.Identity?.Name?.ToUpper() ?? "HR USER")</span>
+                <h1 class="hero-title">Your people at a<br />glance</h1>
+            </div>
 
-<AuthorizeView>
-    @* Logged in users only see a Logout button *@
-    <Authorized>
-        <form method="post" action="logout">
-            <button type="submit" class="btn btn-primary">Logout</button>
-        </form>
-    </Authorized>
+            <!-- Bold Flat-Color Summaries -->
+            <div class="summary-cards-grid">
+                <div class="summary-card card-orange">
+                    <span class="card-label">TOTAL EMPLOYEES</span>
+                    <span class="card-value">@totalEmployees</span>
+                    <span class="card-footer-text">Growing steadily</span>
+                </div>
 
-    @* Logged out users see Login (opens the pop-up) and Sign Up (goes to the HR Profile page) *@
-    <NotAuthorized>
-        <div>
-            <button class="btn btn-primary" @onclick="OpenLogin">Login</button>
-            <a class="btn btn-secondary" href="hr-profile">Sign Up</a>
-        </div>
-    </NotAuthorized>
-</AuthorizeView>
+                <div class="summary-card card-yellow">
+                    <span class="card-label">DEPARTMENTS</span>
+                    <span class="card-value">@totalDepartments</span>
+                    <span class="card-footer-text">Across the company</span>
+                </div>
 
-@* Login pop-up, only shown when showLogin is true *@
+                <div class="summary-card card-green">
+                    <span class="card-label">ONBOARDING</span>
+                    <span class="card-value">@onboardingEmployees</span>
+                    <span class="card-footer-text">New hires onboarding</span>
+                </div>
+
+                <div class="summary-card card-purple">
+                    <span class="card-label">ON LEAVE</span>
+                    <span class="card-value">@onLeaveEmployees</span>
+                    <span class="card-footer-text">Returning soon</span>
+                </div>
+            </div>
+
+            <!-- Middle Section: Quote of the Day & Recent Activity -->
+            <div class="dashboard-mid-grid">
+                <div class="quote-card">
+                    <span class="quote-tag">
+                        <span class="quote-dot"></span>
+                        QUOTE OF THE DAY
+                    </span>
+                    <p class="quote-body">
+                        &ldquo;People don't just want a fair wage &mdash; they want to feel like their work actually matters.&rdquo;
+                    </p>
+                    <span class="quote-author">&mdash; Amara Okafor, Head of People</span>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-header">
+                        <h2>Recent activity</h2>
+                        <span class="activity-date">Today</span>
+                    </div>
+
+                    <ul class="activity-list">
+                        @if (employees != null && employees.Count > 0)
+                        {
+                            var latest = employees.OrderByDescending(e => e.StartDate).Take(3).ToList();
+                            foreach (var emp in latest)
+                            {
+                                <li class="activity-item">
+                                    <span class="activity-dot dot-orange"></span>
+                                    <div class="activity-info">
+                                        <div class="activity-title"><strong>@emp.FullName</strong> joined @emp.Department</div>
+                                        <div class="activity-meta">@emp.Position &middot; @emp.StartDate.ToShortDateString()</div>
+                                    </div>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="activity-item">
+                                <span class="activity-dot dot-green"></span>
+                                <div class="activity-info">
+                                    <div class="activity-title">Directory synchronized with Azure SQL</div>
+                                    <div class="activity-meta">System active</div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Quick Directory Preview -->
+            <div class="preview-surface">
+                <div class="preview-header">
+                    <div>
+                        <h2>Directory</h2>
+                        <p class="preview-subtitle">Recently viewed people</p>
+                    </div>
+                    <a href="directory" class="btn-ui-secondary">
+                        <span>View all</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
+                </div>
+
+                @if (isLoading)
+                {
+                    <p class="preview-loading">Loading employees...</p>
+                }
+                else if (employees == null || employees.Count == 0)
+                {
+                    <p class="preview-empty">No employee records in database.</p>
+                }
+                else
+                {
+                    <div class="preview-list">
+                        @foreach (var emp in employees.Take(4))
+                        {
+                            <div class="preview-row">
+                                <div class="preview-user">
+                                    <div class="preview-avatar">
+                                        @GetInitials(emp.FirstName, emp.LastName)
+                                    </div>
+                                    <div class="preview-details">
+                                        <span class="preview-name">@emp.FullName</span>
+                                        <span class="preview-sub">@emp.Position &middot; @emp.Department</span>
+                                    </div>
+                                </div>
+
+                                <span class="status-pill @GetStatusClass(emp.Status)">
+                                    @emp.Status
+                                </span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="preview-footer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Showing @Math.Min(4, employees.Count) of @employees.Count employees</span>
+                    </div>
+                }
+            </div>
+        </Authorized>
+
+        <NotAuthorized>
+            <!-- Public Welcome Hero -->
+            <div class="public-hero">
+                <span class="hero-eyebrow">WELCOME TO EM-SYSTEM</span>
+                <h1 class="hero-title">Modern workforce<br />management, simplified</h1>
+                <p class="hero-description">
+                    Centralized platform for HR managers and team leads to manage personnel records, track employment statuses, and streamline operations.
+                </p>
+
+                <div class="public-actions">
+                    <button class="btn-ui-orange" @onclick="OpenLogin">
+                        <span>Log in to your account</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </button>
+                    <a href="hr-profile" class="btn-ui-secondary">Create HR Account</a>
+                </div>
+            </div>
+        </NotAuthorized>
+
+    </AuthorizeView>
+</div>
+
+<!-- Login Modal -->
 @if (showLogin)
 {
-    @* Dark background behind the pop-up *@
-    <div class="modal-backdrop show"></div>
-    <div class="modal d-block">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                @* Sends the email and password to /login in Program.cs *@
-                <form method="post" action="login">
-                    @* Hidden security code so the server knows the form came from our site *@
-                    <AntiforgeryToken />
-                    <div class="modal-header">
-                        <h2 class="modal-title fs-5">Login</h2>
-                        <button type="button" class="btn-close" aria-label="Close" @onclick="CloseModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        @* Only shown when a logged out user tried to open a page that needs login *@
-                        @if (ReturnUrl != null)
-                        {
-                            <div class="alert alert-warning">Please log in first to access that page.</div>
-                        }
-                        @* Only shown after a failed login *@
-                        @if (LoginError)
-                        {
-                            <div class="alert alert-danger">Wrong email or password.</div>
-                        }
-                        <div class="mb-3">
-                            <label for="loginEmail" class="form-label">Email</label>
-                            <input id="loginEmail" name="email" type="email" class="form-control" required />
-                        </div>
-                        <div class="mb-3">
-                            <label for="loginPassword" class="form-label">Password</label>
-                            <input id="loginPassword" name="password" type="password" class="form-control" required />
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </div>
-                </form>
+    <div class="ui-modal-backdrop" @onclick="CloseModal">
+        <div class="login-dialog" @onclick:stopPropagation="true">
+            <div class="login-dialog-header">
+                <div>
+                    <span class="login-eyebrow">SECURE LOGIN</span>
+                    <h2 class="login-title">Sign in to your account</h2>
+                </div>
+                <button type="button" class="btn-dialog-close" @onclick="CloseModal" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
+
+            <form method="post" action="login">
+                <AntiforgeryToken />
+                <div class="login-dialog-body">
+                    @if (ReturnUrl != null)
+                    {
+                        <div class="alert-banner banner-warning">Please log in first to access that page.</div>
+                    }
+                    @if (LoginError)
+                    {
+                        <div class="alert-banner banner-danger">Wrong email or password. Please try again.</div>
+                    }
+
+                    <div class="form-group mb-3">
+                        <label for="loginEmail" class="form-label">Work Email</label>
+                        <input id="loginEmail" name="email" type="email" class="form-control" placeholder="name@workwell.co" required />
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label for="loginPassword" class="form-label">Password</label>
+                        <input id="loginPassword" name="password" type="password" class="form-control" placeholder="••••••••" required />
+                    </div>
+
+                    <button type="submit" class="btn-ui-orange w-100 justify-content-center">
+                        Sign In
+                    </button>
+                </div>
+
+                <div class="login-dialog-footer">
+                    <span>Don't have an account?</span>
+                    <a href="hr-profile" class="login-footer-link">Sign Up</a>
+                </div>
+            </form>
         </div>
     </div>
 }
 
 @code {
-    // Reads ?loginError=true from the address bar
     [SupplyParameterFromQuery]
     private bool LoginError { get; set; }
 
-    // Reads ?ReturnUrl=... from the address bar (the page the user tried to open)
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    // true = pop-up is showing, false = pop-up is hidden
-    private bool showLogin = false;
+    [SupplyParameterFromQuery]
+    private bool OpenLoginModalParam { get; set; }
 
-    // Runs when the page loads. Opens the pop-up if there is a message to show
-    protected override void OnInitialized()
+    private bool showLogin = false;
+    private List<Employee>? employees;
+    private bool isLoading = true;
+
+    private int totalEmployees => employees?.Count ?? 0;
+    private int totalDepartments => employees?.Select(e => e.Department).Distinct().Count() ?? 0;
+    private int onboardingEmployees => employees?.Count(e => e.Status.Equals("Onboarding", StringComparison.OrdinalIgnoreCase)) ?? 0;
+    private int onLeaveEmployees => employees?.Count(e => e.Status.Equals("On leave", StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+    protected override async Task OnInitializedAsync()
     {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).ContainsKey("openLogin"))
+        {
+            showLogin = true;
+        }
+
         if (LoginError || ReturnUrl != null)
         {
             showLogin = true;
         }
+
+        try
+        {
+            employees = await EmployeeService.GetAllEmployeesAsync();
+        }
+        catch
+        {
+            employees = new List<Employee>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    // Runs when the Login button is clicked
     private void OpenLogin()
     {
         showLogin = true;
     }
 
-    // Runs when X or Close is clicked
     private void CloseModal()
     {
         showLogin = false;
         LoginError = false;
         ReturnUrl = null;
+    }
+
+    private static string GetInitials(string first, string last)
+    {
+        string f = string.IsNullOrWhiteSpace(first) ? "" : first[0].ToString().ToUpper();
+        string l = string.IsNullOrWhiteSpace(last) ? "" : last[0].ToString().ToUpper();
+        return $"{f}{l}";
+    }
+
+    private static string GetStatusClass(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => "status-active",
+            "on leave" or "onleave" => "status-on-leave",
+            "onboarding" => "status-onboarding",
+            _ => "status-active"
+        };
     }
 }
