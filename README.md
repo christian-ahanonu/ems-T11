@@ -37,9 +37,9 @@ dotnet run
 ### Home Page
 The Home page allows users to access the system.
 
-- Click **Login** to sign in with an existing HR account.
-- Click **Signup** to create a new HR account.
-- After successful login, the Login and Signup buttons are replaced with a Logout button.
+- Click **Log In** or **Log in to your account** to sign in with an existing HR account.
+- Click **Sign Up** to create a new HR account.
+- After successful login, the Log In and Sign Up buttons are replaced with a Logout button.
 
 ### HR Profile Page
 The HR Profile page allows HR users to manage their account.
@@ -49,14 +49,14 @@ The HR Profile page allows HR users to manage their account.
 - Click **Cancel** to close the form without saving.
 - Logged-in users can click **Edit Account** to update their account information.
 
-### Employee Directory Page
+### Directory Page
 The Employee Directory page allows HR users to manage employee records.
 
 - View all employee records stored in the database.
-- Click **Create New Record** to add a new employee.
-- Click **Edit** to update an employee's information.
+- Click **Add Employee** to add a new employee.
+- Click **Edit employee** to update an employee's information.
 - Click **Delete** to remove an employee from the database.
-- Click **Details** to view complete employee information, including:
+- Click **View details** to view complete employee's information, including:
   - Employee ID
   - First Name
   - Last Name

@@ -94,7 +94,25 @@
     animation: modalScale 0.2s ease-out;
 } 
 
-@@keyframes modalScale {
+.hr-account-form-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 4rem);
+}
+
+.hr-account-form-body {
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.hr-account-form-body .hr-modal-footer {
+    padding-top: 1rem;
+    margin-top: 0.75rem;
+}
+
+@keyframes modalScale {
     from {
         opacity: 0;
         transform: scale(0.96);
@@ -163,6 +181,14 @@
 } 
 
 @media (max-width: 600px) {
+    .hr-modal-overlay {
+        padding: 1rem;
+    }
+
+    .hr-account-form-modal {
+        max-height: calc(100vh - 2rem);
+    }
+
     .form-grid-2 {
         grid-template-columns: 1fr;
     }
