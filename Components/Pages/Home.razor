@@ -185,6 +185,7 @@
                     <span class="login-eyebrow">SECURE LOGIN</span>
                     <h2 class="login-title">Sign in to your account</h2>
                 </div>
+
                 <button type="button" class="btn-dialog-close" @onclick="CloseModal" aria-label="Close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -207,7 +208,7 @@
 
                     <div class="form-group mb-3">
                         <label for="loginEmail" class="form-label">Work Email</label>
-                        <input id="loginEmail" name="email" type="email" class="form-control" placeholder="name@workwell.co" required />
+                        <input id="loginEmail" name="email" type="email" class="form-control" placeholder="name@ems.com" required />
                     </div>
 
                     <div class="form-group mb-4">
@@ -236,7 +237,7 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery]
+    [SupplyParameterFromQuery(Name = "openLogin")]
     private bool OpenLoginModalParam { get; set; }
 
     private bool showLogin = false;
@@ -248,19 +249,13 @@
     private int onboardingEmployees => employees?.Count(e => e.Status.Equals("Onboarding", StringComparison.OrdinalIgnoreCase)) ?? 0;
     private int onLeaveEmployees => employees?.Count(e => e.Status.Equals("On leave", StringComparison.OrdinalIgnoreCase)) ?? 0;
 
+    protected override void OnParametersSet()
+    {
+        showLogin = OpenLoginModalParam || LoginError || ReturnUrl != null;
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).ContainsKey("openLogin"))
-        {
-            showLogin = true;
-        }
-
-        if (LoginError || ReturnUrl != null)
-        {
-            showLogin = true;
-        }
-
         try
         {
             employees = await EmployeeService.GetAllEmployeesAsync();
@@ -285,6 +280,8 @@
         showLogin = false;
         LoginError = false;
         ReturnUrl = null;
+        OpenLoginModalParam = false;
+        Navigation.NavigateTo("/", replace: true);
     }
 
     private static string GetInitials(string first, string last)

@@ -40,12 +40,12 @@
 @if (showCreateAccountModal)
 {
     <div class="hr-modal-overlay">
-        <div class="hr-modal">
+        <div class="hr-modal hr-account-form-modal">
             <div class="hr-modal-header">
                 <h2>Create Account</h2>
             </div>
 
-            <div class="hr-modal-body">
+            <div class="hr-modal-body hr-account-form-body">
                 <EditForm Model="createModel"
                         OnValidSubmit="SubmitCreateAccount">
 
@@ -114,12 +114,12 @@
 @if (showEditAccountModal)
 {
     <div class="hr-modal-overlay">
-        <div class="hr-modal">
+        <div class="hr-modal hr-account-form-modal">
             <div class="hr-modal-header">
                 <h2>Edit Account</h2>
             </div>
 
-            <div class="hr-modal-body">
+            <div class="hr-modal-body hr-account-form-body">
                 <EditForm Model="editModel"
                         OnValidSubmit="SubmitEditAccount">
 
